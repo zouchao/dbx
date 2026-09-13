@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { copyToClipboard, type ClipboardEnvironment } from "@/lib/common/clipboard";
+import { copyRichTextToClipboard, copyToClipboard, type ClipboardEnvironment } from "@/lib/common/clipboard";
 
 function legacyClipboardEnvironment(activeDialog?: { appendChild: ReturnType<typeof vi.fn>; removeChild: ReturnType<typeof vi.fn> }) {
   const textarea = {
@@ -44,5 +44,62 @@ describe("copyToClipboard", () => {
 
     expect(body.appendChild).toHaveBeenCalledWith(textarea);
     expect(body.removeChild).toHaveBeenCalledWith(textarea);
+  });
+});
+
+class FakeBlob {
+  constructor(
+    readonly parts: readonly string[],
+    readonly options?: { type?: string },
+  ) {}
+}
+
+class FakeClipboardItem {
+  constructor(readonly items: Record<string, unknown>) {}
+}
+
+function richClipboardEnvironment(write = vi.fn().mockResolvedValue(undefined)) {
+  const env: ClipboardEnvironment = {
+    navigator: { clipboard: { write } },
+    ClipboardItem: FakeClipboardItem,
+    Blob: FakeBlob,
+  };
+  return { env, write };
+}
+
+describe("copyRichTextToClipboard", () => {
+  it("writes an html flavor and a plain-text flavor in one item", async () => {
+    const { env, write } = richClipboardEnvironment();
+
+    await copyRichTextToClipboard('<pre style="color:#000">SELECT</pre>', "SELECT", env);
+
+    expect(write).toHaveBeenCalledTimes(1);
+    const [items] = write.mock.calls[0]!;
+    const [item] = items as FakeClipboardItem[];
+    const flavors = item!.items;
+    expect(flavors["text/html"]).toMatchObject({ parts: ['<pre style="color:#000">SELECT</pre>'], options: { type: "text/html" } });
+    expect(flavors["text/plain"]).toMatchObject({ parts: ["SELECT"], options: { type: "text/plain" } });
+  });
+
+  it("falls back to plain text when the async clipboard rejects the rich write", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const env: ClipboardEnvironment = {
+      navigator: { clipboard: { write: vi.fn().mockRejectedValue(new Error("denied")), writeText } },
+      ClipboardItem: FakeClipboardItem,
+      Blob: FakeBlob,
+    };
+
+    await copyRichTextToClipboard("<pre>SELECT</pre>", "SELECT", env);
+
+    expect(writeText).toHaveBeenCalledWith("SELECT");
+  });
+
+  it("falls back to the legacy copy path when no rich clipboard api exists", async () => {
+    const { env, textarea } = legacyClipboardEnvironment();
+
+    await copyRichTextToClipboard("<pre>SELECT 1;</pre>", "SELECT 1;", env);
+
+    expect(textarea.value).toBe("SELECT 1;");
+    expect(env.document?.execCommand).toHaveBeenCalledWith("copy");
   });
 });

@@ -1437,6 +1437,7 @@ export default withEnglishFallback({
       export: "エクスポート",
       exportQueryResultTo: "現在のクエリ結果セットを {format} にエクスポート",
       copySelection: "選択範囲をコピー",
+      copySelectionAsRichText: "リッチテキストとしてコピー（ハイライト保持）",
       screenshotSelection: "選択したコードをスクリーンショット",
       commentSelection: "選択範囲をコメント化",
       blockCommentSelection: "選択範囲をブロックコメント化",

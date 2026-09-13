@@ -1445,6 +1445,7 @@ export default {
       export: "Export",
       exportQueryResultTo: "Export current query result to {format}",
       copySelection: "Copy selection",
+      copySelectionAsRichText: "Copy as Rich Text",
       screenshotSelection: "Screenshot Selected Code",
       commentSelection: "Comment selection",
       blockCommentSelection: "Block comment selection",
